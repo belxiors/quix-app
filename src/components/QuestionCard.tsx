@@ -1,5 +1,6 @@
 import { HandleUserResponse, QuizQuestion } from "../App";
 type QuestionCardProps = {
+  isLoadingQuestion: boolean;
   questionInfo: QuizQuestion;
   questionAnsweredCallback: (response: HandleUserResponse) => void;
 };
@@ -23,10 +24,14 @@ const QuestionCard = (props: QuestionCardProps) => {
 
   return (
     <div>
-      <h2>{props.questionInfo.question}</h2>
-      {possibleAnswers.map((value) => (
-        <button onClick={() => handleAnswer(value)}>{value}</button>
-      ))}
+      {!props.isLoadingQuestion ? (
+        <div>
+          <h2>{props.questionInfo.question}</h2>
+          {possibleAnswers.map((value) => (
+            <button key={value} onClick={() => handleAnswer(value)}>{value}</button>
+          ))}
+        </div>
+      ) : <div>loading</div>}
     </div>
   );
 };

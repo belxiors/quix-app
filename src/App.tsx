@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useReducer, useState } from "react";
 import "./App.css";
 import QuestionCard from "./components/QuestionCard";
+import { quizInitialState, quizReducer } from "./quiz-reducer";
 
-type QuestionDifficulty = 'easy' | 'medium' | 'hard';
+type QuestionDifficulty = "easy" | "medium" | "hard";
 
 export type QuizQuestion = {
   type: "boolean" | "multiple";
@@ -23,12 +24,21 @@ export type HandleUserResponse =
   | { isAnswerCorrect: false };
 
 async function fetchQuestion(numberOfQuestions: number = 1) {
-  const response = await fetch(
-    `https://opentdb.com/api.php?amount=${numberOfQuestions}`
-  );
-  const responseData: QuizResponse = await response.json();
+  try {
+    const response = await fetch(
+      `https://opentdb.com/api.php?amount=${numberOfQuestions}`
+    );
 
-  return responseData;
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const responseData: QuizResponse = await response.json();
+    return responseData;
+  } catch (error) {
+    console.error("Error fetching questions:", error);
+    return null;
+  }
 }
 
 function difficultyToPointMapper(difficulty: QuestionDifficulty) {
@@ -45,21 +55,33 @@ function difficultyToPointMapper(difficulty: QuestionDifficulty) {
 }
 
 function App() {
-  const [question, setQuestion] = useState<QuizQuestion>();
-  const [points, setPoints] = useState(0);
+  const [{ question, points, isLoadingQuestion }, dispatch] = useReducer(
+    quizReducer,
+    quizInitialState
+  );
 
   async function handleNextQuestion() {
-    const question = await fetchQuestion();
-    if (question.results.length > 0) {
-      setQuestion(question.results[0]);
+    dispatch({ type: "setLoading", payload: true });
+    try {
+      const question = await fetchQuestion();
+      if (question !== null && question.results.length > 0) {
+        dispatch({ type: "setNewQuestion", payload: question.results[0] });
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      dispatch({ type: "setLoading", payload: false });
     }
   }
 
   function handleUserResponse(response: HandleUserResponse) {
     if (response.isAnswerCorrect) {
-      setPoints(points + difficultyToPointMapper(response.difficulty));
+      dispatch({
+        type: "setPoints",
+        payload: points + difficultyToPointMapper(response.difficulty),
+      });
     } else if (points > 0) {
-      setPoints(points - 1);
+      dispatch({ type: "setPoints", payload: points - 1 });
     }
 
     handleNextQuestion();
@@ -73,6 +95,7 @@ function App() {
         <div>
           <div>{points}</div>
           <QuestionCard
+            isLoadingQuestion={isLoadingQuestion}
             questionInfo={question}
             questionAnsweredCallback={handleUserResponse}
           />
